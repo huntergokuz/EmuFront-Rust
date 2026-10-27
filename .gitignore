@@ -1,0 +1,33 @@
+# ---- Rust build output ----
+/target/
+**/*.rs.bk
+*.pdb
+
+# ---- Built binaries & native libraries (build products, never source) ----
+*.exe
+*.dll
+/pkg/
+
+# ---- Installer output (Inno Setup) ----
+installer/Output/
+*.iss.local
+
+# ---- EmuFront runtime data: the shared config, Rust settings/sidecar,
+#      snapshots and caches are per-user local data. NEVER commit. ----
+emufront_config.json
+emufront_rust.json
+emufront_rust_data.json
+*.snapshot.json
+Artwork/
+Music/
+Hacked ROMs/
+
+# ---- Local staging / scratch ----
+staging/
+*.log
+
+# ---- Editor / OS noise ----
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
