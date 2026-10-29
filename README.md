@@ -5,14 +5,14 @@
 <h1 align="center">EmuFront Rust</h1>
 
 <p align="center">
-  <b>A fast, native Windows front end for your emulator library.</b><br>
+  <b>A fast, native front end for your emulator library — Windows and Linux.</b><br>
   Browse your games as a wall of box art, pick one, and play.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/release-0.07%20Alpha-blueviolet" alt="Release 0.07 Alpha">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2B%2064--bit-blue" alt="Windows 10+ 64-bit">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%2B%20%2B%20Linux-blue" alt="Windows 10+ 64-bit and Linux">
   <img src="https://img.shields.io/badge/built%20with-Rust-orange" alt="Built with Rust">
   <img src="https://img.shields.io/badge/ROMs%20included-none-red" alt="No ROMs included">
 </p>
@@ -145,6 +145,11 @@ The complete, detailed feature list lives in
 Prebuilt builds are published on this repository's
 **[Releases](../../releases)** page, starting with **0.07 Alpha**.
 
+**Linux:** the source tree now builds and runs on Linux (Stage 1 —
+see *Building from source* below); a packaged Linux download is
+planned. On Linux you will need `libxkbcommon-x11` and a `7z` binary
+on your PATH.
+
 EmuFront only *points at* your emulators — it never bundles, embeds, or
 modifies them. Each emulator stays its own standalone install.
 
@@ -159,7 +164,7 @@ they remain your own.
 ## System requirements
 
 - **Windows 10 64-bit or later** (hard floor — Windows 7/8 are not
-  supported)
+  supported), or **Linux** (x86-64; tested on Ubuntu 24.04)
 - ~2008-or-later dual-core CPU
 - 4 GB RAM (low-spec mode), more is comfortable but not required
 - A graphics driver with OpenGL 2.0+
@@ -171,9 +176,11 @@ they remain your own.
 - **In development** — favorites and personal star ratings, custom
   shelves, a "Surprise me" random picker, a backlog roulette, and smart
   shelves (never played / not played in a year / no box art yet).
-- **macOS and Linux** — next. EmuFront is built on a cross-platform Rust
-  UI foundation; the porting work is file paths, emulator launching, and
-  packaging.
+- **Linux** — in the tree now: the Stage 1 port is folded into this
+  source (builds and runs; packaging and polish in progress).
+- **macOS** — next. EmuFront is built on a cross-platform Rust
+  UI foundation; the remaining work is file paths, emulator launching,
+  and packaging.
 - **Android** — planned as its own sibling project, not a quick port:
   Android needs a touch-first interface, a different way of launching
   emulator apps, and storage that works within Android's permission
