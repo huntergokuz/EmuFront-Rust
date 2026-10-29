@@ -118,13 +118,70 @@
 // Reads the EXISTING emufront_config.json, shared with the Python
 // build — the Python version stays; this is the Rust edition
 // alongside it.
-#![windows_subsystem = "windows"]
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::io::Read as IoRead;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[cfg(windows)]
 use std::os::windows::process::CommandExt;
+
+/// Hide a spawned helper process's console window: CREATE_NO_WINDOW on
+/// Windows, a no-op everywhere else (no console windows to hide).
+/// Call sites use `.hide_window()` in place of `.creation_flags(..)`.
+trait HideWindow {
+    fn hide_window(&mut self) -> &mut Self;
+}
+
+#[cfg(windows)]
+impl HideWindow for Command {
+    fn hide_window(&mut self) -> &mut Self {
+        self.creation_flags(0x0800_0000)
+    }
+}
+
+#[cfg(not(windows))]
+impl HideWindow for Command {
+    fn hide_window(&mut self) -> &mut Self {
+        self
+    }
+}
+
+/// Open a URL in the user's default browser.
+fn open_url(url: &str) {
+    #[cfg(windows)]
+    {
+        let _ = Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .hide_window()
+            .spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = Command::new("open").arg(url).spawn();
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        let _ = Command::new("xdg-open").arg(url).spawn();
+    }
+}
+
+/// Open a folder in the OS file manager.
+fn show_folder(path: &Path) {
+    #[cfg(windows)]
+    {
+        let _ = Command::new("explorer").arg(path).spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = Command::new("open").arg(path).spawn();
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        let _ = Command::new("xdg-open").arg(path).spawn();
+    }
+}
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -2601,7 +2658,10 @@ fn run_emulator_exe(label: &str, path: &str, args: &[String]) -> Result<String, 
 // the shared emufront_config.json is never touched by this.
 
 const RA_DIR: &str = r"C:\RetroArch";
+#[cfg(windows)]
 const SEVEN_ZIP: &str = r"C:\Program Files\7-Zip\7z.exe";
+#[cfg(not(windows))]
+const SEVEN_ZIP: &str = "7z";
 
 fn exe_dir() -> PathBuf {
     std::env::current_exe()
@@ -3521,7 +3581,7 @@ fn ps_probe() -> Option<String> {
         .args(["-NoProfile", "-Command", script])
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
-        .creation_flags(0x0800_0000)
+        .hide_window()
         .spawn()
         .ok()?;
     let deadline = Instant::now() + Duration::from_secs(6);
@@ -3724,7 +3784,7 @@ fn github_latest(repo: &str) -> Option<(String, String)> {
 fn retroarch_version(exe: &Path) -> Option<String> {
     let out = Command::new(exe)
         .arg("--version")
-        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+        .hide_window() // CREATE_NO_WINDOW on Windows
         .output()
         .ok()?;
     let text = String::from_utf8_lossy(&out.stdout).to_string();
@@ -3851,7 +3911,7 @@ fn ra_stamp() -> (String, String) {
 
 fn ra_running() -> bool {
     Command::new("tasklist")
-        .creation_flags(0x0800_0000)
+        .hide_window()
         .args(["/FI", "IMAGENAME eq retroarch.exe"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).contains("retroarch.exe"))
@@ -3949,7 +4009,7 @@ fn ra_ensure(channel: &str) -> String {
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("C:\\"));
     let out = Command::new(SEVEN_ZIP)
-        .creation_flags(0x0800_0000)
+        .hide_window()
         .args([
             "x",
             "-y",
@@ -7813,7 +7873,7 @@ fn catalog_build_entry(entry: &CatalogEntry) -> Result<HackEntry, String> {
 fn extract_archive(archive: &Path, dest: &Path) -> Result<Vec<PathBuf>, String> {
     let _ = std::fs::create_dir_all(dest);
     let st = Command::new(SEVEN_ZIP)
-        .creation_flags(0x0800_0000)
+        .hide_window()
         .args([
             "x",
             "-y",
@@ -8991,10 +9051,7 @@ fn fetch_unpacked(
                         .into(),
                 );
             }
-            let _ = Command::new("cmd")
-                .args(["/C", "start", "", &entry.url])
-        .creation_flags(0x0800_0000)
-                .spawn();
+            open_url(&entry.url);
             let p = watch_downloads_for_patch().ok_or(
                 "No download appeared in your Downloads folder (waited 4 minutes).",
             )?;
@@ -9273,10 +9330,7 @@ fn download_and_build(
         None => {
             // Livewire click-through: open the page in his browser
             // and watch Downloads for the file, like the Python app.
-            let _ = Command::new("cmd")
-                .args(["/C", "start", "", &entry.url])
-        .creation_flags(0x0800_0000)
-                .spawn();
+            open_url(&entry.url);
             watch_downloads_for_patch()
                 .ok_or("No download appeared in your Downloads folder (waited 4 minutes).")?
         }
@@ -10453,7 +10507,7 @@ fn fix_gliden64_ini(gfx_dir: &Path, file_storage: bool) -> bool {
 
 fn dolphin_running() -> bool {
     Command::new("tasklist")
-        .creation_flags(0x0800_0000)
+        .hide_window()
         .args(["/FI", "IMAGENAME eq Dolphin.exe"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).contains("Dolphin.exe"))
@@ -10849,7 +10903,7 @@ fn install_texture_pack_inner(
 // ---------------- file dialogs (via PowerShell) ---------------------
 fn ps_dialog(script: &str) -> Option<String> {
     let out = Command::new("powershell")
-        .creation_flags(0x0800_0000)
+        .hide_window()
         .args(["-STA", "-NoProfile", "-Command", script])
         .output()
         .ok()?;
@@ -15513,24 +15567,16 @@ impl Proto {
             if open_folder {
                 if let Some(f) = &st.folder {
                     let _ = std::fs::create_dir_all(f);
-                    let _ = Command::new("explorer")
-                        .arg(f.to_string_lossy().as_ref())
-                        .spawn();
+                    show_folder(f);
                 }
             }
             if open_search {
                 if let Some(u) = &st.search {
-                    let _ = Command::new("cmd")
-                        .args(["/C", "start", "", u])
-                        .creation_flags(0x0800_0000)
-                        .spawn();
+                    open_url(u);
                 }
             }
             if let Some(u) = open_page {
-                let _ = Command::new("cmd")
-                    .args(["/C", "start", "", &u])
-                    .creation_flags(0x0800_0000)
-                    .spawn();
+                open_url(&u);
             }
             if let Some(url) = install {
                 st.busy = true;
